@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -67,6 +68,8 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 	var fieldFlags []string
 	var jsonData string
 	var autoPaginate bool
+	var nameContains string
+	var nameRegex string
 
 	pathParamNames := placeholders(endpoint.Path)
 	pathFlagValues := map[string]*string{}
@@ -111,6 +114,9 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 			}
 
 			method := strings.ToUpper(endpoint.Method)
+			if method == "GET" && autoPaginate && shouldSetDefaultLimit(endpoint, query) {
+				query["limit"] = "100"
+			}
 			if rt.Options.DryRun && method != "GET" {
 				payload := map[string]any{
 					"schema_version": "v1",
@@ -131,6 +137,9 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 			if requestErr != nil {
 				return requestErr
 			}
+			if filterErr := applyNameFilter(response, nameContains, nameRegex); filterErr != nil {
+				return filterErr
+			}
 			format, formatErr := rt.EffectiveOutput(profileName)
 			if formatErr != nil {
 				return formatErr
@@ -149,7 +158,11 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 	command.Flags().StringArrayVar(&queryFlags, "query", nil, "query parameter as key=value (repeatable)")
 	command.Flags().StringArrayVar(&fieldFlags, "field", nil, "request data field as key=value, value supports JSON literals")
 	command.Flags().StringVar(&jsonData, "data", "", "request body JSON object")
-	command.Flags().BoolVar(&autoPaginate, "all", strings.ToUpper(endpoint.Method) == "GET", "auto-follow pagination for list endpoints")
+	command.Flags().BoolVar(&autoPaginate, "all", shouldAutoPaginateByDefault(endpoint), "auto-follow pagination for list endpoints")
+	if isListLikeEndpoint(endpoint) {
+		command.Flags().StringVar(&nameContains, "name-contains", "", "local filter: include rows where name contains this value (case-insensitive)")
+		command.Flags().StringVar(&nameRegex, "name-regex", "", "local filter: include rows where name matches this regular expression")
+	}
 
 	return command
 }
@@ -245,4 +258,71 @@ func mapsFrom(in []map[string]any) []any {
 		out = append(out, item)
 	}
 	return out
+}
+
+func shouldAutoPaginateByDefault(endpoint asanaapi.Endpoint) bool {
+	if strings.ToUpper(endpoint.Method) != "GET" {
+		return false
+	}
+	return isListLikeEndpoint(endpoint)
+}
+
+func shouldSetDefaultLimit(endpoint asanaapi.Endpoint, query map[string]string) bool {
+	if !isListLikeEndpoint(endpoint) {
+		return false
+	}
+	if _, ok := query["limit"]; ok {
+		return false
+	}
+	return true
+}
+
+func isListLikeEndpoint(endpoint asanaapi.Endpoint) bool {
+	name := strings.ToLower(strings.TrimSpace(endpoint.Name))
+	if strings.HasPrefix(name, "list") || strings.HasPrefix(name, "search") {
+		return true
+	}
+	return name == "favorites"
+}
+
+func applyNameFilter(response map[string]any, nameContains string, nameRegex string) error {
+	contains := strings.TrimSpace(nameContains)
+	regexValue := strings.TrimSpace(nameRegex)
+	if contains == "" && regexValue == "" {
+		return nil
+	}
+
+	rawData, ok := response["data"].([]any)
+	if !ok {
+		return errs.New("invalid_argument", "--name-contains/--name-regex are supported only for list responses", "")
+	}
+	rows := make([]map[string]any, 0, len(rawData))
+	for _, item := range rawData {
+		row, rowOK := item.(map[string]any)
+		if rowOK {
+			rows = append(rows, row)
+		}
+	}
+
+	var compiled *regexp.Regexp
+	if regexValue != "" {
+		regex, err := regexp.Compile(regexValue)
+		if err != nil {
+			return errs.Wrap("invalid_argument", "failed to parse --name-regex", "", err)
+		}
+		compiled = regex
+	}
+
+	filtered := app.FilterByName(rows, app.NameFilterOptions{
+		Contains: contains,
+		Regex:    compiled,
+	})
+	response["data"] = mapsFrom(filtered)
+	response["filters"] = map[string]any{
+		"name_contains": contains,
+		"name_regex":    regexValue,
+		"before_count":  len(rows),
+		"after_count":   len(filtered),
+	}
+	return nil
 }

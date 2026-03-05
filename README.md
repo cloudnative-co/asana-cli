@@ -194,6 +194,31 @@ asana task list --output json --non-interactive
 asana user list --workspace <gid> --domain example.com --output csv --out users.csv
 ```
 
+### Frequent filtering patterns
+
+Use local name filters on list responses:
+
+```bash
+asana task list-project \
+  --project-gid 1199687679891327 \
+  --query opt_fields=gid,name,completed,due_on,assignee.name,permalink_url \
+  --name-contains pocketalk \
+  --output json \
+  --non-interactive
+```
+
+Regex filter is also supported:
+
+```bash
+asana task list-project --project-gid <gid> --name-regex 'pocketalk-[0-9]+' --output json
+```
+
+Notes:
+
+- `--name-contains` is case-insensitive.
+- `--name-regex` uses Go regular expressions.
+- For list/search endpoints with `--all`, CLI now sets `limit=100` automatically if not specified to avoid large-result errors.
+
 ## Official Endpoint Groups
 
 - `asana task ...` (27 endpoint mappings)
