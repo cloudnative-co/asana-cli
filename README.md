@@ -109,6 +109,42 @@ asana auth login \
   --redirect-uri "https://<your-registered-callback>"
 ```
 
+### OAuth Permission Scopes の設定パターン
+
+Asana Developer Console の **OAuth > Permission scopes** は、次のどちらかで運用する。
+
+1. Full permissions を使う（簡単だが権限が広い）
+2. Specific scopes を使う（推奨: 最小権限）
+
+#### 1) Full permissions 方式
+
+- アプリ設定で `Full permissions` を有効化
+- `asana auth login` は `--scopes` を指定しない
+- もし `forbidden_scopes: ... default identity ...` が出る場合は、`Full permissions` が無効か配布設定不足
+
+```bash
+asana auth login \
+  --profile default \
+  --client-id "$ASANA_MCP_CLIENT_ID" \
+  --client-secret "$ASANA_MCP_CLIENT_SECRET" \
+  --redirect-uri "urn:ietf:wg:oauth:2.0:oob"
+```
+
+#### 2) Specific scopes 方式（推奨）
+
+- `Full permissions` を無効化
+- アプリ設定で必要scopeのみ有効化
+- CLIでも同じscopeを `--scopes` で明示
+
+```bash
+asana auth login \
+  --profile default \
+  --client-id "$ASANA_MCP_CLIENT_ID" \
+  --client-secret "$ASANA_MCP_CLIENT_SECRET" \
+  --redirect-uri "urn:ietf:wg:oauth:2.0:oob" \
+  --scopes "tasks:read,tasks:write,tasks:delete,projects:read,projects:write,projects:delete,users:read,stories:read,stories:write,attachments:read,workspaces:read"
+```
+
 ### `forbidden_scopes` が出る場合
 
 - アプリ側で許可されていないスコープを要求すると `forbidden_scopes` になる
