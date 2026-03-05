@@ -55,6 +55,34 @@ func NewUserCommand(provider RuntimeProvider) *cobra.Command {
 	return command
 }
 
+func NewAttachmentCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("attachment", "Attachment operations", asanaapi.AttachmentEndpoints, provider)
+}
+
+func NewStoryCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("story", "Story operations", asanaapi.StoryEndpoints, provider)
+}
+
+func NewTagCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("tag", "Tag operations", asanaapi.TagEndpoints, provider)
+}
+
+func NewSectionCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("section", "Section operations", asanaapi.SectionEndpoints, provider)
+}
+
+func NewCustomFieldCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("custom-field", "Custom field operations", asanaapi.CustomFieldEndpoints, provider)
+}
+
+func NewUserTaskListCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("user-task-list", "User task list operations", asanaapi.UserTaskListEndpoints, provider)
+}
+
+func NewTimeEntryCommand(provider RuntimeProvider) *cobra.Command {
+	return newResourceCommand("time-entry", "Time tracking entry operations", asanaapi.TimeTrackingEntryEndpoints, provider)
+}
+
 func newResourceCommand(name, short string, endpoints []asanaapi.Endpoint, provider RuntimeProvider) *cobra.Command {
 	root := &cobra.Command{Use: name, Short: short, SilenceUsage: true}
 	for _, endpoint := range endpoints {

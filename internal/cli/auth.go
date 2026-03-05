@@ -34,6 +34,7 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 	var clientSecret string
 	var redirectURI string
 	var scopes []string
+	var scopePreset string
 	var code string
 	var codeVerifier string
 
@@ -71,9 +72,20 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 					redirectURI = "urn:ietf:wg:oauth:2.0:oob"
 				}
 			}
-			if len(scopes) == 0 {
-				scopes = profileCfg.OAuth.Scopes
+			resolvedScopes := []string{}
+			if strings.TrimSpace(scopePreset) != "" {
+				presetScopes, presetErr := auth.ResolveScopePreset(scopePreset)
+				if presetErr != nil {
+					return presetErr
+				}
+				resolvedScopes = append(resolvedScopes, presetScopes...)
 			}
+			resolvedScopes = append(resolvedScopes, scopes...)
+			resolvedScopes = auth.NormalizeScopes(resolvedScopes)
+			if len(resolvedScopes) == 0 {
+				resolvedScopes = auth.NormalizeScopes(profileCfg.OAuth.Scopes)
+			}
+			scopes = resolvedScopes
 
 			if strings.TrimSpace(clientID) == "" {
 				return errs.New("invalid_argument", "client_id is required", "set --client-id or configure profile oauth.client_id")
@@ -154,6 +166,7 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "asana oauth client secret")
 	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri (must exactly match app OAuth redirect URL; default: urn:ietf:wg:oauth:2.0:oob)")
 	cmd.Flags().StringSliceVar(&scopes, "scopes", nil, "oauth scopes (comma-separated or repeatable, e.g. --scopes tasks:read,users:read)")
+	cmd.Flags().StringVar(&scopePreset, "scope-preset", "", "oauth scope preset (supported: task-full)")
 	cmd.Flags().StringVar(&code, "code", "", "oauth authorization code")
 	cmd.Flags().StringVar(&codeVerifier, "code-verifier", "", "oauth code verifier (advanced)")
 

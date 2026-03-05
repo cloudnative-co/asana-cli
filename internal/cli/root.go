@@ -43,6 +43,13 @@ func NewRootCommand() *cobra.Command {
 	root.AddCommand(NewTaskCommand(provider))
 	root.AddCommand(NewProjectCommand(provider))
 	root.AddCommand(NewUserCommand(provider))
+	root.AddCommand(NewAttachmentCommand(provider))
+	root.AddCommand(NewStoryCommand(provider))
+	root.AddCommand(NewTagCommand(provider))
+	root.AddCommand(NewSectionCommand(provider))
+	root.AddCommand(NewCustomFieldCommand(provider))
+	root.AddCommand(NewUserTaskListCommand(provider))
+	root.AddCommand(NewTimeEntryCommand(provider))
 	for _, compatCommand := range NewCompatCommands(provider) {
 		root.AddCommand(compatCommand)
 	}
