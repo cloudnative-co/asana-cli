@@ -6,7 +6,7 @@ This repository ships a Homebrew formula at `Formula/asana.rb`.
 
 ```bash
 brew tap cloudnative-co/asana-cli https://github.com/cloudnative-co/asana-cli
-brew install --HEAD cloudnative-co/asana-cli/asana
+brew install cloudnative-co/asana-cli/asana
 ```
 
 Notes:
@@ -27,7 +27,7 @@ Notes:
 4. Validate formula:
 
 ```bash
-brew install --HEAD cloudnative-co/asana-cli/asana --dry-run
+brew install cloudnative-co/asana-cli/asana --dry-run
 ```
 
 5. Commit and push formula updates.
@@ -37,3 +37,9 @@ brew install --HEAD cloudnative-co/asana-cli/asana --dry-run
 - `head` always points to `main`.
 - `url` + `sha256` are added/updated only for tagged releases.
 - Keep `test do` lightweight (`asana --help`) to avoid external Asana dependencies.
+
+Install HEAD build when needed:
+
+```bash
+brew install --HEAD cloudnative-co/asana-cli/asana
+```

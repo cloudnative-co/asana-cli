@@ -3,7 +3,10 @@ class Asana < Formula
   homepage "https://github.com/cloudnative-co/asana-cli"
   license "MIT"
 
-  # Head-only formula for now. Stable URL/SHA can be added after the first tag release.
+  url "https://github.com/cloudnative-co/asana-cli/archive/refs/tags/v0.1.0.tar.gz"
+  sha256 "ff13417f1356e8cb0ce428c9a56dcf7d545b74822df94e26e331b9cd47e765f6"
+
+  # Keep HEAD support for development snapshots.
   head "https://github.com/cloudnative-co/asana-cli.git", branch: "main"
 
   depends_on "go" => :build

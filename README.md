@@ -26,7 +26,7 @@ Tap this repository and install the formula:
 
 ```bash
 brew tap cloudnative-co/asana-cli https://github.com/cloudnative-co/asana-cli
-brew install --HEAD cloudnative-co/asana-cli/asana
+brew install cloudnative-co/asana-cli/asana
 ```
 
 If `asana` is already linked from another source, run:
@@ -44,8 +44,13 @@ This repository includes `Formula/asana.rb` and a helper script:
 ./scripts/update-homebrew-formula.sh v0.1.0
 ```
 
-The script downloads the release tarball, calculates `sha256`, and injects stable
-`url` + `sha256` into the formula.
+The script downloads the release tarball and updates `url` + `sha256` in the formula.
+
+To install the latest development snapshot:
+
+```bash
+brew install --HEAD cloudnative-co/asana-cli/asana
+```
 
 See also: [docs/homebrew.md](docs/homebrew.md)
 

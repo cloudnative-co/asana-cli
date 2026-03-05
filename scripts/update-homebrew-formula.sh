@@ -51,5 +51,5 @@ echo "  sha256: ${SHA256}"
 echo
 echo "Next:"
 echo "  1) Review Formula/asana.rb"
-echo "  2) brew audit --strict Formula/asana.rb"
+echo "  2) brew install cloudnative-co/asana-cli/asana --dry-run"
 echo "  3) Commit and push"
