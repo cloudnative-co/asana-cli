@@ -65,14 +65,14 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 			if strings.TrimSpace(redirectURI) == "" {
 				redirectURI = strings.TrimSpace(profileCfg.OAuth.RedirectURI)
 				if redirectURI == "" {
+					redirectURI = strings.TrimSpace(os.Getenv("ASANA_REDIRECT_URI"))
+				}
+				if redirectURI == "" {
 					redirectURI = "urn:ietf:wg:oauth:2.0:oob"
 				}
 			}
 			if len(scopes) == 0 {
 				scopes = profileCfg.OAuth.Scopes
-			}
-			if len(scopes) == 0 {
-				scopes = []string{"tasks:read", "tasks:write", "tasks:delete", "projects:read", "projects:write", "projects:delete", "users:read", "stories:read", "stories:write", "attachments:read", "workspaces:read"}
 			}
 
 			if strings.TrimSpace(clientID) == "" {
@@ -111,6 +111,13 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 			}
 
 			if strings.TrimSpace(code) == "" {
+				fmt.Fprintf(os.Stderr, "OAuth redirect_uri: %s\n", redirectURI)
+				fmt.Fprintln(os.Stderr, "This value must exactly match one of your app's OAuth Redirect URLs in Asana Developer Console.")
+				if len(scopes) == 0 {
+					fmt.Fprintln(os.Stderr, "OAuth scopes: (not specified; Asana app defaults will be used)")
+				} else {
+					fmt.Fprintf(os.Stderr, "OAuth scopes: %s\n", strings.Join(scopes, " "))
+				}
 				fmt.Fprintf(os.Stderr, "Open the following URL and authorize the app:\n%s\n\n", authURL)
 				if rt.Options.NonInteractive {
 					return errs.New("invalid_argument", "oauth authorization code is required in non-interactive mode", "pass --code <code>")
@@ -145,8 +152,8 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 	cmd.Flags().StringVar(&profileName, "profile", "", "profile name override")
 	cmd.Flags().StringVar(&clientID, "client-id", "", "asana oauth client id")
 	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "asana oauth client secret")
-	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri")
-	cmd.Flags().StringSliceVar(&scopes, "scopes", nil, "oauth scopes")
+	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri (must exactly match app OAuth redirect URL; default: urn:ietf:wg:oauth:2.0:oob)")
+	cmd.Flags().StringSliceVar(&scopes, "scopes", nil, "oauth scopes (comma-separated or repeatable, e.g. --scopes tasks:read,users:read)")
 	cmd.Flags().StringVar(&code, "code", "", "oauth authorization code")
 	cmd.Flags().StringVar(&codeVerifier, "code-verifier", "", "oauth code verifier (advanced)")
 

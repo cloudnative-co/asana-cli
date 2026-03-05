@@ -80,7 +80,48 @@ asana tasks
 asana auth login \
   --profile default \
   --client-id <client_id> \
-  --client-secret <client_secret>
+  --client-secret <client_secret> \
+  --redirect-uri <redirect_uri_registered_in_asana_app>
+```
+
+### redirect_uri の指定ルール
+
+- `--redirect-uri` は **Asana Developer Console の OAuth Redirect URLs に登録済みの値と完全一致** が必要
+- 1文字でも違うとブラウザで `invalid_request: The redirect_uri parameter does not match...` になる
+
+CLI用途の例（アプリ側で同じ値を登録している場合）:
+
+```bash
+asana auth login \
+  --profile default \
+  --client-id "$ASANA_MCP_CLIENT_ID" \
+  --client-secret "$ASANA_MCP_CLIENT_SECRET" \
+  --redirect-uri "urn:ietf:wg:oauth:2.0:oob"
+```
+
+OOBを使わず Web callback を登録しているアプリなら、その登録済みURLをそのまま指定:
+
+```bash
+asana auth login \
+  --profile default \
+  --client-id "$ASANA_MCP_CLIENT_ID" \
+  --client-secret "$ASANA_MCP_CLIENT_SECRET" \
+  --redirect-uri "https://<your-registered-callback>"
+```
+
+### `forbidden_scopes` が出る場合
+
+- アプリ側で許可されていないスコープを要求すると `forbidden_scopes` になる
+- このCLIは `--scopes` 未指定時、アプリの既定スコープを使う
+- 必要な場合のみ、アプリで許可済みのスコープだけを明示指定する
+
+```bash
+asana auth login \
+  --profile default \
+  --client-id "$ASANA_MCP_CLIENT_ID" \
+  --client-secret "$ASANA_MCP_CLIENT_SECRET" \
+  --redirect-uri "urn:ietf:wg:oauth:2.0:oob" \
+  --scopes "tasks:read,users:read,workspaces:read"
 ```
 
 ## Output Modes
