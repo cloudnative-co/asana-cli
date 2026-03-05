@@ -124,6 +124,33 @@ asana auth login \
   --scopes "tasks:read,users:read,workspaces:read"
 ```
 
+### Asanaアプリ側の OAuth scope 設定チェック
+
+Asana Developer Console の **OAuth > Permission scopes** で、少なくとも以下を有効化:
+
+- `tasks:read`
+- `tasks:write`
+- `tasks:delete`（`task delete` を使う場合）
+- `projects:read`
+- `projects:write`
+- `projects:delete`（`project delete` を使う場合）
+- `users:read`
+- `stories:read`（タスク履歴表示）
+- `stories:write`（コメント投稿）
+- `attachments:read`（添付参照/ダウンロード）
+- `workspaces:read`（workspace取得）
+
+補足:
+
+- `--scopes` で指定した値は、アプリ側で許可済みでないと `forbidden_scopes` になる
+- `--scopes` を省略すると、アプリの既定スコープで認可を試行する
+- `user update` / `user update-for-workspace` は OAuth scopes 一覧に `users:write` が存在しないため、アプリ設定（Full permissions など）と実際のAPI応答で要確認
+
+公式ドキュメント:
+
+- OAuth scopes: https://developers.asana.com/docs/oauth-scopes
+- Authentication: https://developers.asana.com/docs/authentication
+
 ## Output Modes
 
 ```bash
