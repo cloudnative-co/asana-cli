@@ -86,18 +86,21 @@ func NewTimeEntryCommand(provider RuntimeProvider) *cobra.Command {
 func newResourceCommand(name, short string, endpoints []asanaapi.Endpoint, provider RuntimeProvider) *cobra.Command {
 	root := &cobra.Command{Use: name, Short: short, SilenceUsage: true}
 	for _, endpoint := range endpoints {
-		root.AddCommand(newEndpointSubcommand(endpoint, provider))
+		root.AddCommand(newEndpointSubcommand(name, endpoint, provider))
 	}
 	return root
 }
 
-func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider) *cobra.Command {
+func newEndpointSubcommand(resourceName string, endpoint asanaapi.Endpoint, provider RuntimeProvider) *cobra.Command {
 	var queryFlags []string
 	var fieldFlags []string
 	var jsonData string
 	var autoPaginate bool
 	var nameContains string
 	var nameRegex string
+	var assignee string
+	var workspace string
+	var resolveProjects string
 
 	pathParamNames := placeholders(endpoint.Path)
 	pathFlagValues := map[string]*string{}
@@ -119,6 +122,26 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 			query, queryErr := parseKeyValueFlags(queryFlags)
 			if queryErr != nil {
 				return queryErr
+			}
+			if shouldUseTaskAssigneeFlag(resourceName, endpoint) {
+				if strings.TrimSpace(assignee) != "" {
+					query["assignee"] = strings.TrimSpace(assignee)
+				}
+				if strings.TrimSpace(workspace) != "" {
+					query["workspace"] = strings.TrimSpace(workspace)
+				} else if strings.TrimSpace(query["workspace"]) == "" && strings.TrimSpace(assignee) != "" {
+					if profileCfg, profileExists, profileErr := rt.GetProfile(profileName); profileErr == nil && profileExists && profileCfg.Workspace != "" {
+						query["workspace"] = profileCfg.Workspace
+					}
+				}
+			}
+			if shouldSupportTaskProjectResolution(resourceName, endpoint) && strings.TrimSpace(resolveProjects) != "" {
+				if strings.TrimSpace(resolveProjects) != app.ResolveProjectsAncestors {
+					return errs.New("invalid_argument", "unsupported --resolve-projects mode", "supported: ancestors")
+				}
+				if existing := strings.TrimSpace(query["opt_fields"]); existing != "" {
+					query["opt_fields"] = app.MergeOptFields(existing, app.TaskProjectResolutionFields()...)
+				}
 			}
 			pathValues := map[string]string{}
 			for name, valuePtr := range pathFlagValues {
@@ -165,6 +188,11 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 			if requestErr != nil {
 				return requestErr
 			}
+			if shouldSupportTaskProjectResolution(resourceName, endpoint) && strings.TrimSpace(resolveProjects) != "" {
+				if resolutionErr := applyTaskProjectResolution(ctx, client, response); resolutionErr != nil {
+					return resolutionErr
+				}
+			}
 			if filterErr := applyNameFilter(response, nameContains, nameRegex); filterErr != nil {
 				return filterErr
 			}
@@ -187,9 +215,16 @@ func newEndpointSubcommand(endpoint asanaapi.Endpoint, provider RuntimeProvider)
 	command.Flags().StringArrayVar(&fieldFlags, "field", nil, "request data field as key=value, value supports JSON literals")
 	command.Flags().StringVar(&jsonData, "data", "", "request body JSON object")
 	command.Flags().BoolVar(&autoPaginate, "all", shouldAutoPaginateByDefault(endpoint), "auto-follow pagination for list endpoints")
+	if shouldUseTaskAssigneeFlag(resourceName, endpoint) {
+		command.Flags().StringVar(&assignee, "assignee", "", "task assignee gid or me")
+		command.Flags().StringVar(&workspace, "workspace", "", "workspace gid for task list queries")
+	}
 	if isListLikeEndpoint(endpoint) {
 		command.Flags().StringVar(&nameContains, "name-contains", "", "local filter: include rows where name contains this value (case-insensitive)")
 		command.Flags().StringVar(&nameRegex, "name-regex", "", "local filter: include rows where name matches this regular expression")
+	}
+	if shouldSupportTaskProjectResolution(resourceName, endpoint) {
+		command.Flags().StringVar(&resolveProjects, "resolve-projects", "", "resolve task projects after fetch (supported: ancestors)")
 	}
 
 	return command
@@ -288,6 +323,35 @@ func mapsFrom(in []map[string]any) []any {
 	return out
 }
 
+func shouldUseTaskAssigneeFlag(resourceName string, endpoint asanaapi.Endpoint) bool {
+	return resourceName == "task" && endpoint.Name == "list"
+}
+
+func shouldSupportTaskProjectResolution(resourceName string, endpoint asanaapi.Endpoint) bool {
+	if resourceName != "task" {
+		return false
+	}
+	switch endpoint.Name {
+	case "list",
+		"create",
+		"get",
+		"update",
+		"list-project",
+		"list-section",
+		"list-tag",
+		"list-user-task-list",
+		"list-subtasks",
+		"create-subtask",
+		"list-dependencies",
+		"list-dependents",
+		"get-by-custom-id",
+		"search-workspace":
+		return true
+	default:
+		return false
+	}
+}
+
 func shouldAutoPaginateByDefault(endpoint asanaapi.Endpoint) bool {
 	if strings.ToUpper(endpoint.Method) != "GET" {
 		return false
@@ -311,6 +375,103 @@ func isListLikeEndpoint(endpoint asanaapi.Endpoint) bool {
 		return true
 	}
 	return name == "favorites"
+}
+
+func applyTaskProjectResolution(ctx context.Context, client *asanaapi.Client, response map[string]any) error {
+	tasks, ok := extractTaskMaps(response["data"])
+	if !ok {
+		return nil
+	}
+	rootTaskGIDs := taskGIDs(tasks)
+	batchCache := map[string]map[string]any{}
+	batchFailures := map[string]error{}
+	rootsPrefetched := false
+	fetch := func(ctx context.Context, taskGID string) (map[string]any, error) {
+		if task, ok := batchCache[taskGID]; ok {
+			return task, nil
+		}
+		if err, ok := batchFailures[taskGID]; ok {
+			return nil, err
+		}
+		if !rootsPrefetched {
+			prefetched, failures, err := client.BatchGetTasks(ctx, rootTaskGIDs, app.TaskProjectResolutionFields())
+			if err != nil {
+				return nil, err
+			}
+			for gid, task := range prefetched {
+				batchCache[gid] = task
+			}
+			for gid, fetchErr := range failures {
+				batchFailures[gid] = fetchErr
+			}
+			rootsPrefetched = true
+			if task, ok := batchCache[taskGID]; ok {
+				return task, nil
+			}
+			if err, ok := batchFailures[taskGID]; ok {
+				return nil, err
+			}
+		}
+		resp, err := client.Request(ctx, "GET", "/tasks/"+taskGID, map[string]string{
+			"opt_fields": app.MergeOptFields("", app.TaskProjectResolutionFields()...),
+		}, nil, false)
+		if err != nil {
+			return nil, err
+		}
+		data, ok := resp["data"].(map[string]any)
+		if !ok {
+			return nil, errs.New("internal_error", "unexpected task resolution response shape", "")
+		}
+		return data, nil
+	}
+	return app.ResolveTaskProjects(ctx, tasks, fetch)
+}
+
+func taskGIDs(tasks []map[string]any) []string {
+	out := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		gid := strings.TrimSpace(stringValue(task["gid"]))
+		if gid == "" {
+			continue
+		}
+		out = append(out, gid)
+	}
+	return out
+}
+
+func extractTaskMaps(data any) ([]map[string]any, bool) {
+	switch typed := data.(type) {
+	case map[string]any:
+		if !looksLikeTask(typed) {
+			return nil, false
+		}
+		return []map[string]any{typed}, true
+	case []any:
+		tasks := make([]map[string]any, 0, len(typed))
+		for _, item := range typed {
+			task, ok := item.(map[string]any)
+			if !ok || !looksLikeTask(task) {
+				return nil, false
+			}
+			tasks = append(tasks, task)
+		}
+		return tasks, true
+	default:
+		return nil, false
+	}
+}
+
+func looksLikeTask(task map[string]any) bool {
+	if task == nil {
+		return false
+	}
+	gid := strings.TrimSpace(stringValue(task["gid"]))
+	return gid != ""
+}
+
+func stringValue(v any) string {
+	s, _ := v.(string)
+	return s
 }
 
 func applyNameFilter(response map[string]any, nameContains string, nameRegex string) error {

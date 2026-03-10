@@ -240,6 +240,38 @@ Notes:
 - `--name-regex` uses Go regular expressions.
 - For list/search endpoints with `--all`, CLI now sets `limit=100` automatically if not specified to avoid large-result errors.
 
+### Assigned tasks and resolved projects
+
+List tasks for a specific assignee:
+
+```bash
+asana task list \
+  --assignee me \
+  --workspace <workspace_gid> \
+  --output json \
+  --non-interactive
+```
+
+If the active profile already has a workspace set, `--workspace` can be omitted.
+
+Resolve projects from ancestor tasks without overwriting the task's direct `projects` field:
+
+```bash
+asana task get \
+  --task-gid <task_gid> \
+  --resolve-projects ancestors \
+  --output json \
+  --non-interactive
+```
+
+This adds:
+
+- `resolved_projects`
+- `resolved_from_task_gid`
+- `resolved_from_task_name`
+- `resolved_from_depth`
+- `resolved_projects_status`
+
 ## Official Endpoint Groups
 
 - `asana task ...` (29 endpoint mappings)

@@ -31,6 +31,30 @@ func TestShouldSetDefaultLimit(t *testing.T) {
 	}
 }
 
+func TestShouldUseTaskAssigneeFlag(t *testing.T) {
+	if !shouldUseTaskAssigneeFlag("task", asanaapi.Endpoint{Name: "list"}) {
+		t.Fatalf("expected task list to support --assignee")
+	}
+	if shouldUseTaskAssigneeFlag("task", asanaapi.Endpoint{Name: "get"}) {
+		t.Fatalf("expected task get not to support --assignee")
+	}
+}
+
+func TestShouldSupportTaskProjectResolution(t *testing.T) {
+	if !shouldSupportTaskProjectResolution("task", asanaapi.Endpoint{Name: "get"}) {
+		t.Fatalf("expected task get to support project resolution")
+	}
+	if !shouldSupportTaskProjectResolution("task", asanaapi.Endpoint{Name: "list-project"}) {
+		t.Fatalf("expected task list-project to support project resolution")
+	}
+	if shouldSupportTaskProjectResolution("project", asanaapi.Endpoint{Name: "get"}) {
+		t.Fatalf("expected non-task command not to support project resolution")
+	}
+	if shouldSupportTaskProjectResolution("task", asanaapi.Endpoint{Name: "duplicate"}) {
+		t.Fatalf("expected task duplicate not to support project resolution")
+	}
+}
+
 func TestApplyNameFilter(t *testing.T) {
 	resp := map[string]any{
 		"data": []any{
@@ -58,5 +82,25 @@ func TestApplyNameFilter_NonListResponse(t *testing.T) {
 	resp := map[string]any{"data": map[string]any{"name": "x"}}
 	if err := applyNameFilter(resp, "x", ""); err == nil {
 		t.Fatalf("expected error for non-list response")
+	}
+}
+
+func TestExtractTaskMaps(t *testing.T) {
+	resp := []any{
+		map[string]any{"gid": "1", "name": "Task 1"},
+		map[string]any{"gid": "2", "name": "Task 2"},
+	}
+	tasks, ok := extractTaskMaps(resp)
+	if !ok {
+		t.Fatalf("expected task extraction to succeed")
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(tasks))
+	}
+}
+
+func TestExtractTaskMapsRejectsNonTask(t *testing.T) {
+	if _, ok := extractTaskMaps(map[string]any{"name": "missing gid"}); ok {
+		t.Fatalf("expected non-task map to be rejected")
 	}
 }
