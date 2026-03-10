@@ -3,8 +3,9 @@ class Asana < Formula
   homepage "https://github.com/cloudnative-co/asana-cli"
   license "MIT"
 
-  url "https://github.com/cloudnative-co/asana-cli/archive/refs/tags/v0.1.3.tar.gz"
-  sha256 "69ea99dfff9317d09f0a2efb836ba38685d89e3e02ffd40eab22d115bd3ea084"
+  url "https://github.com/cloudnative-co/asana-cli/archive/refs/tags/v0.1.4.tar.gz"
+  sha256 "a6b11362834164e619f3cbc3a18038c58667c4d9784036cf0387eae83db14a8b"
+
 
 
 
