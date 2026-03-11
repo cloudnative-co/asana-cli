@@ -55,6 +55,21 @@ func TestShouldSupportTaskProjectResolution(t *testing.T) {
 	}
 }
 
+func TestShouldSupportTaskSubtaskExpansion(t *testing.T) {
+	if !shouldSupportTaskSubtaskExpansion("task", asanaapi.Endpoint{Name: "get"}) {
+		t.Fatalf("expected task get to support subtask expansion")
+	}
+	if !shouldSupportTaskSubtaskExpansion("task", asanaapi.Endpoint{Name: "list-project"}) {
+		t.Fatalf("expected task list-project to support subtask expansion")
+	}
+	if shouldSupportTaskSubtaskExpansion("project", asanaapi.Endpoint{Name: "get"}) {
+		t.Fatalf("expected non-task command not to support subtask expansion")
+	}
+	if shouldSupportTaskSubtaskExpansion("task", asanaapi.Endpoint{Name: "duplicate"}) {
+		t.Fatalf("expected task duplicate not to support subtask expansion")
+	}
+}
+
 func TestApplyNameFilter(t *testing.T) {
 	resp := map[string]any{
 		"data": []any{
@@ -102,5 +117,42 @@ func TestExtractTaskMaps(t *testing.T) {
 func TestExtractTaskMapsRejectsNonTask(t *testing.T) {
 	if _, ok := extractTaskMaps(map[string]any{"name": "missing gid"}); ok {
 		t.Fatalf("expected non-task map to be rejected")
+	}
+}
+
+func TestExtractAllTaskMaps(t *testing.T) {
+	resp := map[string]any{
+		"gid":  "1",
+		"name": "Task 1",
+		"descendant_subtasks": []any{
+			map[string]any{"gid": "2", "name": "Task 2"},
+			map[string]any{"gid": "3", "name": "Task 3"},
+		},
+	}
+	tasks, ok := extractAllTaskMaps(resp)
+	if !ok {
+		t.Fatalf("expected recursive task extraction to succeed")
+	}
+	if len(tasks) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(tasks))
+	}
+}
+
+func TestFlattenTaskListWithDescendants(t *testing.T) {
+	root := map[string]any{
+		"gid":                       "1",
+		"name":                      "root",
+		"descendant_subtasks":       []any{map[string]any{"gid": "2", "name": "child", "subtask_depth": 1}},
+		"descendant_subtasks_count": 1,
+	}
+	rows := flattenTaskListWithDescendants([]map[string]any{root})
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows after flattening, got %d", len(rows))
+	}
+	if _, ok := rows[0]["descendant_subtasks"]; ok {
+		t.Fatalf("expected flattened root row to omit descendant_subtasks")
+	}
+	if rows[1]["gid"] != "2" {
+		t.Fatalf("unexpected descendant row: %#v", rows[1])
 	}
 }

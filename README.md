@@ -272,6 +272,30 @@ This adds:
 - `resolved_from_depth`
 - `resolved_projects_status`
 
+Expand descendant subtasks from any task-shaped response:
+
+```bash
+asana task list-project \
+  --project-gid <project_gid> \
+  --query completed_since=now \
+  --include-subtasks descendants \
+  --output json \
+  --non-interactive
+```
+
+For list responses, descendant subtasks are flattened into `data` and annotated with:
+
+- `expanded_from_task_gid`
+- `expanded_from_task_name`
+- `subtask_depth`
+
+For single-task responses, the root task keeps its normal shape and adds:
+
+- `descendant_subtasks`
+- `descendant_subtasks_count`
+
+`completed_since` is propagated to descendant subtask fetches, so `completed_since=now` keeps the expansion open-task only.
+
 ## Official Endpoint Groups
 
 - `asana task ...` (29 endpoint mappings)
