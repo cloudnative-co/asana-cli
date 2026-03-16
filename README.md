@@ -74,6 +74,13 @@ asana config --profile default --workspace <workspace_gid>
 asana tasks
 ```
 
+Path-param commands also accept positional arguments in placeholder order. These are equivalent:
+
+```bash
+asana project get --project-gid 1212822434343286
+asana project get 1212822434343286
+```
+
 ## OAuth Login
 
 ```bash
@@ -295,6 +302,28 @@ For single-task responses, the root task keeps its normal shape and adds:
 - `descendant_subtasks_count`
 
 `completed_since` is propagated to descendant subtask fetches, so `completed_since=now` keeps the expansion open-task only.
+
+### Section endpoints and permissions
+
+`asana section ...` endpoints may require `Full permissions` in Asana Developer Console even when the same project is otherwise readable via `project` / `task` endpoints.
+
+Typical example:
+
+```bash
+asana section list-for-project --project-gid <project_gid> --output json --non-interactive
+```
+
+If this returns `403` with a hint like `Full permissions are required to use this endpoint.`, re-auth with an app configured for `Full permissions`.
+
+When you only need section names attached to tasks, you can often use:
+
+```bash
+asana task list-project \
+  --project-gid <project_gid> \
+  --query opt_fields=gid,name,memberships.section.name \
+  --output json \
+  --non-interactive
+```
 
 ## Official Endpoint Groups
 

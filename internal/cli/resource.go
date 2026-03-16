@@ -152,6 +152,9 @@ func newEndpointSubcommand(resourceName string, endpoint asanaapi.Endpoint, prov
 			for name, valuePtr := range pathFlagValues {
 				pathValues[name] = strings.TrimSpace(*valuePtr)
 			}
+			if positionalErr := applyPositionalPathArgs(endpoint.Path, pathValues, args); positionalErr != nil {
+				return positionalErr
+			}
 
 			if workspaceValue, ok := pathValues["workspace_gid"]; ok && workspaceValue == "" {
 				if profileCfg, profileExists, profileErr := rt.GetProfile(profileName); profileErr == nil && profileExists && profileCfg.Workspace != "" {
@@ -191,6 +194,9 @@ func newEndpointSubcommand(resourceName string, endpoint asanaapi.Endpoint, prov
 
 			response, requestErr := client.Request(ctx, method, resolvedPath, query, body, autoPaginate && method == "GET")
 			if requestErr != nil {
+				if improved := improveSectionEndpointError(endpoint.Path, requestErr); improved != nil {
+					return improved
+				}
 				return requestErr
 			}
 			if shouldSupportTaskSubtaskExpansion(resourceName, endpoint) && strings.TrimSpace(includeSubtasks) != "" {
@@ -658,4 +664,27 @@ func applyNameFilter(response map[string]any, nameContains string, nameRegex str
 		"after_count":   len(filtered),
 	}
 	return nil
+}
+
+func isSectionEndpointPath(path string) bool {
+	normalized := strings.TrimSpace(path)
+	if strings.Contains(normalized, "/sections/") {
+		return true
+	}
+	return strings.Contains(normalized, "/projects/{project_gid}/sections")
+}
+
+func improveSectionEndpointError(path string, err error) error {
+	if !isSectionEndpointPath(path) {
+		return nil
+	}
+	machine := errs.AsMachine(err)
+	if machine.Status != 403 {
+		return nil
+	}
+	if !strings.Contains(strings.ToLower(machine.Hint), "full permissions") {
+		return nil
+	}
+	machine.Hint = "This section endpoint likely requires Full permissions in Asana Developer Console. Re-auth with a Full permissions app, or use `asana task list-project --query opt_fields=memberships.section.name,...` when section names are enough."
+	return machine
 }

@@ -78,11 +78,39 @@ func fillPath(path string, values map[string]string) (string, error) {
 	for _, key := range placeholders(path) {
 		value, ok := values[key]
 		if !ok || strings.TrimSpace(value) == "" {
-			return "", errs.New("invalid_argument", fmt.Sprintf("missing required path param: %s", key), "")
+			flagName := normalizeFlagName(key)
+			return "", errs.New(
+				"invalid_argument",
+				fmt.Sprintf("missing required path param: %s", key),
+				fmt.Sprintf("pass --%s <value> or use positional args in placeholder order", flagName),
+			)
 		}
 		result = strings.ReplaceAll(result, "{"+key+"}", value)
 	}
 	return result, nil
+}
+
+func applyPositionalPathArgs(path string, values map[string]string, args []string) error {
+	placeholders := placeholders(path)
+	if len(args) > len(placeholders) {
+		return errs.New(
+			"invalid_argument",
+			"too many positional arguments",
+			fmt.Sprintf("expected at most %d positional args for path params", len(placeholders)),
+		)
+	}
+
+	for index, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			continue
+		}
+		key := placeholders[index]
+		if strings.TrimSpace(values[key]) != "" {
+			continue
+		}
+		values[key] = arg
+	}
+	return nil
 }
 
 func normalizeFlagName(in string) string {

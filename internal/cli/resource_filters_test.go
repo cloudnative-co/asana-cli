@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cloudnative-co/asana-cli/internal/asanaapi"
+	"github.com/cloudnative-co/asana-cli/internal/errs"
 )
 
 func TestShouldAutoPaginateByDefault(t *testing.T) {
@@ -154,5 +155,33 @@ func TestFlattenTaskListWithDescendants(t *testing.T) {
 	}
 	if rows[1]["gid"] != "2" {
 		t.Fatalf("unexpected descendant row: %#v", rows[1])
+	}
+}
+
+func TestImproveSectionEndpointError(t *testing.T) {
+	err := improveSectionEndpointError("/projects/{project_gid}/sections", &errs.MachineError{
+		Code:    "api_error",
+		Message: "forbidden",
+		Hint:    "Full permissions are required to use this endpoint.",
+		Status:  403,
+	})
+	if err == nil {
+		t.Fatalf("expected improved error")
+	}
+	machine := errs.AsMachine(err)
+	if machine.Hint == "Full permissions are required to use this endpoint." {
+		t.Fatalf("expected improved hint, got %q", machine.Hint)
+	}
+}
+
+func TestIsSectionEndpointPath(t *testing.T) {
+	if !isSectionEndpointPath("/projects/{project_gid}/sections") {
+		t.Fatalf("expected project sections path to be detected")
+	}
+	if !isSectionEndpointPath("/sections/{section_gid}/tasks") {
+		t.Fatalf("expected section path to be detected")
+	}
+	if isSectionEndpointPath("/projects/{project_gid}/tasks") {
+		t.Fatalf("did not expect task path to be detected")
 	}
 }
