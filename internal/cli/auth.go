@@ -102,6 +102,13 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 			if len(resolvedScopes) == 0 {
 				resolvedScopes = auth.NormalizeScopes(profileCfg.OAuth.Scopes)
 			}
+			if len(resolvedScopes) == 0 {
+				defaultScopes, presetErr := auth.ResolveScopePreset("cli-default")
+				if presetErr != nil {
+					return presetErr
+				}
+				resolvedScopes = defaultScopes
+			}
 			scopes = resolvedScopes
 
 			if strings.TrimSpace(clientID) == "" {
@@ -143,7 +150,7 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 				fmt.Fprintf(os.Stderr, "OAuth redirect_uri: %s\n", redirectURI)
 				fmt.Fprintln(os.Stderr, "This value must exactly match one of your app's OAuth Redirect URLs in Asana Developer Console.")
 				if len(scopes) == 0 {
-					fmt.Fprintln(os.Stderr, "OAuth scopes: (not specified; Asana app defaults will be used)")
+					fmt.Fprintln(os.Stderr, "OAuth scopes: cli-default")
 				} else {
 					fmt.Fprintf(os.Stderr, "OAuth scopes: %s\n", strings.Join(scopes, " "))
 				}
@@ -177,7 +184,7 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "asana oauth client secret (or env ASANA_CLI_CLIENT_SECRET)")
 	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri (or env ASANA_CLI_REDIRECT_URI; must exactly match app OAuth redirect URL; default: urn:ietf:wg:oauth:2.0:oob)")
 	cmd.Flags().StringSliceVar(&scopes, "scopes", nil, "oauth scopes (comma-separated or repeatable, e.g. --scopes tasks:read,users:read)")
-	cmd.Flags().StringVar(&scopePreset, "scope-preset", "", "oauth scope preset (supported: task-full)")
+	cmd.Flags().StringVar(&scopePreset, "scope-preset", "", "oauth scope preset (supported: cli-default, task-full)")
 	cmd.Flags().StringVar(&code, "code", "", "oauth authorization code")
 	cmd.Flags().StringVar(&codeVerifier, "code-verifier", "", "oauth code verifier (advanced)")
 

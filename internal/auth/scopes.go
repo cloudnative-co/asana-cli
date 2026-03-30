@@ -7,7 +7,7 @@ import (
 	"github.com/cloudnative-co/asana-cli/internal/errs"
 )
 
-var taskRelatedScopes = []string{
+var cliDefaultScopes = []string{
 	"attachments:delete",
 	"attachments:read",
 	"attachments:write",
@@ -31,13 +31,17 @@ var taskRelatedScopes = []string{
 	"workspaces:read",
 }
 
+var taskRelatedScopes = append([]string(nil), cliDefaultScopes...)
+
 func ResolveScopePreset(name string) ([]string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	switch normalized {
+	case "cli-default", "default", "recommended":
+		return append([]string(nil), cliDefaultScopes...), nil
 	case "task-full", "tasks-full", "task-related", "task-related-full":
 		return append([]string(nil), taskRelatedScopes...), nil
 	default:
-		return nil, errs.New("invalid_argument", "unknown --scope-preset value", "supported: task-full")
+		return nil, errs.New("invalid_argument", "unknown --scope-preset value", "supported: cli-default, task-full")
 	}
 }
 

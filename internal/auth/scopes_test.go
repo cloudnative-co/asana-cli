@@ -3,7 +3,7 @@ package auth
 import "testing"
 
 func TestResolveScopePreset(t *testing.T) {
-	scopes, err := ResolveScopePreset("task-full")
+	scopes, err := ResolveScopePreset("cli-default")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -19,6 +19,25 @@ func TestResolveScopePreset(t *testing.T) {
 	}
 	if !foundCustomFields {
 		t.Fatalf("expected custom_fields:read in preset scopes")
+	}
+}
+
+func TestResolveScopePresetTaskFullMatchesCliDefault(t *testing.T) {
+	cliDefault, err := ResolveScopePreset("cli-default")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	taskFull, err := ResolveScopePreset("task-full")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cliDefault) != len(taskFull) {
+		t.Fatalf("expected equal lengths, got cli-default=%d task-full=%d", len(cliDefault), len(taskFull))
+	}
+	for i := range cliDefault {
+		if cliDefault[i] != taskFull[i] {
+			t.Fatalf("expected matching scopes, got cli-default=%#v task-full=%#v", cliDefault, taskFull)
+		}
 	}
 }
 
