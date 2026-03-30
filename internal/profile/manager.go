@@ -119,7 +119,7 @@ func (m *Manager) ResolveProfileName(flagProfile string) (string, error) {
 	if strings.TrimSpace(flagProfile) != "" {
 		return strings.TrimSpace(flagProfile), nil
 	}
-	if envProfile := strings.TrimSpace(os.Getenv("ASANA_PROFILE")); envProfile != "" {
+	if envProfile := strings.TrimSpace(os.Getenv("ASANA_CLI_PROFILE")); envProfile != "" {
 		return envProfile, nil
 	}
 	cfg, err := m.LoadConfig()

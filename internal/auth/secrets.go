@@ -28,13 +28,13 @@ func NewSecretStore() *SecretStore {
 func envForKind(kind string) string {
 	switch kind {
 	case KindPAT:
-		return "ASANA_PAT"
+		return "ASANA_CLI_PAT"
 	case KindAccessToken:
-		return "ASANA_ACCESS_TOKEN"
+		return "ASANA_CLI_ACCESS_TOKEN"
 	case KindRefreshToken:
-		return "ASANA_REFRESH_TOKEN"
+		return "ASANA_CLI_REFRESH_TOKEN"
 	case KindClientSecret:
-		return "ASANA_CLIENT_SECRET"
+		return "ASANA_CLI_CLIENT_SECRET"
 	default:
 		return ""
 	}
@@ -54,7 +54,7 @@ func (s *SecretStore) Set(profileName, kind, value string) (string, error) {
 		return "", errs.Wrap(
 			"missing_secret",
 			"failed to store secret in keyring",
-			"keyring is unavailable. set env vars (ASANA_PAT / ASANA_ACCESS_TOKEN / ASANA_REFRESH_TOKEN / ASANA_CLIENT_SECRET) as fallback",
+			"keyring is unavailable. set env vars (ASANA_CLI_PAT / ASANA_CLI_ACCESS_TOKEN / ASANA_CLI_REFRESH_TOKEN / ASANA_CLI_CLIENT_SECRET) as fallback",
 			err,
 		)
 	}

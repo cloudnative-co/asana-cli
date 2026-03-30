@@ -197,7 +197,7 @@ func (s *Service) ResolveBearerToken(ctx context.Context, profileName string) (s
 		return "", "", secretErr
 	}
 	if !foundSecret || clientSecret == "" {
-		return "", "", errs.New("token_refresh_failed", "oauth client_secret is missing", "set ASANA_CLIENT_SECRET or run `asana auth login`")
+		return "", "", errs.New("token_refresh_failed", "oauth client_secret is missing", "set ASANA_CLI_CLIENT_SECRET or run `asana auth login`")
 	}
 
 	refreshed, refreshTokenErr := RefreshAccessToken(ctx, s.httpClient, profileCfg.OAuth.ClientID, clientSecret, refreshToken)

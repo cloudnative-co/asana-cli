@@ -15,6 +15,20 @@ import (
 	"github.com/cloudnative-co/asana-cli/internal/output"
 )
 
+func authLoginSuccessPayload(profileName string, token any) map[string]any {
+	tokenResponse, _ := token.(auth.TokenResponse)
+	nextCommand := fmt.Sprintf("asana config --profile %s --workspace <workspace_gid>", profileName)
+	return map[string]any{
+		"schema_version": "v1",
+		"profile":        profileName,
+		"token_type":     tokenResponse.TokenType,
+		"expires_in":     tokenResponse.ExpiresIn,
+		"expires_at":     time.Now().UTC().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second).Format(time.RFC3339),
+		"next_step":      "Configure your default workspace before running task and project commands.",
+		"next_command":   nextCommand,
+	}
+}
+
 func NewAuthCommand(provider RuntimeProvider) *cobra.Command {
 	authCommand := &cobra.Command{
 		Use:   "auth",
@@ -63,10 +77,13 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 			if strings.TrimSpace(clientID) == "" {
 				clientID = strings.TrimSpace(profileCfg.OAuth.ClientID)
 			}
+			if strings.TrimSpace(clientID) == "" {
+				clientID = strings.TrimSpace(os.Getenv("ASANA_CLI_CLIENT_ID"))
+			}
 			if strings.TrimSpace(redirectURI) == "" {
 				redirectURI = strings.TrimSpace(profileCfg.OAuth.RedirectURI)
 				if redirectURI == "" {
-					redirectURI = strings.TrimSpace(os.Getenv("ASANA_REDIRECT_URI"))
+					redirectURI = strings.TrimSpace(os.Getenv("ASANA_CLI_REDIRECT_URI"))
 				}
 				if redirectURI == "" {
 					redirectURI = "urn:ietf:wg:oauth:2.0:oob"
@@ -92,11 +109,11 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 			}
 
 			if strings.TrimSpace(clientSecret) == "" {
-				clientSecret = strings.TrimSpace(os.Getenv("ASANA_CLIENT_SECRET"))
+				clientSecret = strings.TrimSpace(os.Getenv("ASANA_CLI_CLIENT_SECRET"))
 			}
 			if strings.TrimSpace(clientSecret) == "" {
 				if rt.Options.NonInteractive {
-					return errs.New("invalid_argument", "client_secret is required in non-interactive mode", "set --client-secret or ASANA_CLIENT_SECRET")
+					return errs.New("invalid_argument", "client_secret is required in non-interactive mode", "set --client-secret or ASANA_CLI_CLIENT_SECRET")
 				}
 				input, inputErr := prompt("Client Secret: ")
 				if inputErr != nil {
@@ -146,13 +163,7 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 				return loginErr
 			}
 
-			payload := map[string]any{
-				"schema_version": "v1",
-				"profile":        resolvedProfile,
-				"token_type":     token.TokenType,
-				"expires_in":     token.ExpiresIn,
-				"expires_at":     time.Now().UTC().Add(time.Duration(token.ExpiresIn) * time.Second).Format(time.RFC3339),
-			}
+			payload := authLoginSuccessPayload(resolvedProfile, token)
 			format, formatErr := rt.EffectiveOutput(resolvedProfile)
 			if formatErr != nil {
 				return formatErr
@@ -162,9 +173,9 @@ func newAuthLoginCommand(provider RuntimeProvider) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&profileName, "profile", "", "profile name override")
-	cmd.Flags().StringVar(&clientID, "client-id", "", "asana oauth client id")
-	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "asana oauth client secret")
-	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri (must exactly match app OAuth redirect URL; default: urn:ietf:wg:oauth:2.0:oob)")
+	cmd.Flags().StringVar(&clientID, "client-id", "", "asana oauth client id (or env ASANA_CLI_CLIENT_ID)")
+	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "asana oauth client secret (or env ASANA_CLI_CLIENT_SECRET)")
+	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "oauth redirect uri (or env ASANA_CLI_REDIRECT_URI; must exactly match app OAuth redirect URL; default: urn:ietf:wg:oauth:2.0:oob)")
 	cmd.Flags().StringSliceVar(&scopes, "scopes", nil, "oauth scopes (comma-separated or repeatable, e.g. --scopes tasks:read,users:read)")
 	cmd.Flags().StringVar(&scopePreset, "scope-preset", "", "oauth scope preset (supported: task-full)")
 	cmd.Flags().StringVar(&code, "code", "", "oauth authorization code")
@@ -198,11 +209,11 @@ func newAuthImportPATCommand(provider RuntimeProvider) *cobra.Command {
 
 			value := strings.TrimSpace(pat)
 			if value == "" {
-				value = strings.TrimSpace(os.Getenv("ASANA_PAT"))
+				value = strings.TrimSpace(os.Getenv("ASANA_CLI_PAT"))
 			}
 			if value == "" {
 				if rt.Options.NonInteractive {
-					return errs.New("invalid_argument", "pat is required in non-interactive mode", "pass --pat or ASANA_PAT")
+					return errs.New("invalid_argument", "pat is required in non-interactive mode", "pass --pat or ASANA_CLI_PAT")
 				}
 				input, inputErr := prompt("Personal Access Token: ")
 				if inputErr != nil {
@@ -222,7 +233,7 @@ func newAuthImportPATCommand(provider RuntimeProvider) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&profileName, "profile", "", "profile name override")
-	cmd.Flags().StringVar(&pat, "pat", "", "personal access token")
+	cmd.Flags().StringVar(&pat, "pat", "", "personal access token (or env ASANA_CLI_PAT)")
 	return cmd
 }
 

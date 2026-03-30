@@ -30,7 +30,7 @@ func NewRootCommand() *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	root.PersistentFlags().StringVar(&opts.Profile, "profile", "", "profile name (or ASANA_PROFILE)")
+	root.PersistentFlags().StringVar(&opts.Profile, "profile", "", "profile name (or env ASANA_CLI_PROFILE)")
 	root.PersistentFlags().StringVar(&opts.Output, "output", "", "output format: table|json|csv")
 	root.PersistentFlags().StringVar(&opts.OutputPath, "out", "", "write output to file path")
 	root.PersistentFlags().BoolVar(&opts.NoColor, "no-color", false, "disable color output")

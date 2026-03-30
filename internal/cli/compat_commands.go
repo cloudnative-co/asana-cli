@@ -121,7 +121,7 @@ func newCompatConfigCommand(provider RuntimeProvider) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&profileName, "profile", "", "profile name")
-	cmd.Flags().StringVar(&pat, "pat", "", "personal access token")
+	cmd.Flags().StringVar(&pat, "pat", "", "personal access token (or env ASANA_CLI_PAT)")
 	cmd.Flags().StringVar(&workspace, "workspace", "", "workspace gid")
 	return cmd
 }
